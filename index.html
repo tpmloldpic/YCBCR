@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YCbCr / 色度取樣互動教學展示（CbCr 版）</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --line: #dbe2ea;
+      --text: #0f172a;
+      --muted: #475569;
+      --accent: #2563eb;
+      --soft: #eef4ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans TC", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1550px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .panel, .card {
+      background: var(--card);
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      border: 1px solid rgba(15, 23, 42, 0.05);
+    }
+    .panel {
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px 0; font-size: 30px; }
+    h2.section { margin: 0 0 14px 2px; font-size: 20px; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      background: #fbfdff;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    button, .file-label {
+      border: 0;
+      background: var(--accent);
+      color: white;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    button.secondary { background: #0f766e; }
+    input[type="file"] { display: none; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    .slider-block { margin-top: 14px; }
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      gap: 10px;
+    }
+    .subtext {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 5px;
+      line-height: 1.5;
+    }
+    .grid-3, .grid-2 {
+      display: grid;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { padding: 14px; }
+    .card h3 {
+      margin: 0 0 10px 0;
+      text-align: center;
+      font-size: 18px;
+    }
+    .canvas-box {
+      aspect-ratio: 4 / 3;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      image-rendering: auto;
+    }
+    .placeholder {
+      position: absolute;
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .formula {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--soft);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #1e3a8a;
+      min-height: 96px;
+      white-space: pre-line;
+    }
+    .subtitle {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 14px;
+      color: var(--muted);
+      min-height: 24px;
+    }
+    .small-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+    .metric-list { display: grid; gap: 8px; font-size: 14px; }
+    .helper {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .warning {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    @media (max-width: 1100px) {
+      .toolbar, .grid-3, .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>YCbCr / 色度取樣互動教學展示（CbCr 版）</h1>
+      <p>
+        本頁全部統一使用 <strong>Y / Cb / Cr（數位）</strong> 的說法，不混用 Pb / Pr。
+        上傳圖片後可同時觀察 RGB、Y / Cb / Cr、重建結果，並用滑桿分別改變
+        Y、Cb、Cr 的取樣密度。Cb / Cr 也可切換成灰階或彩色 mapping 顯示。
+      </p>
+
+      <div class="toolbar">
+        <div class="box">
+          <div class="row">
+            <label class="file-label" for="fileInput">上傳圖片</label>
+            <input id="fileInput" type="file" accept="image/*" />
+            <button id="downloadBtn" type="button">下載目前重建圖</button>
+            <button id="resetBtn" type="button" class="secondary">重設滑桿</button>
+          </div>
+
+          <div class="row" style="margin-bottom:8px;">
+            <strong>Cb / Cr 顯示模式</strong>
+            <label><input type="radio" name="chromaView" value="gray" checked> 灰階（數值大小）</label>
+            <label><input type="radio" name="chromaView" value="mapped"> 彩色 mapping（教學視覺化）</label>
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <span>Y 取樣密度 <span class="small-badge" id="yValue">4</span></span>
+              <span id="yPercent">100%</span>
+            </div>
+            <input id="ySlider" type="range" min="0" max="4" step="1" value="4" />
+            <div class="subtext">控制亮度 Y 的保留程度。這條通常最影響畫面細節。</div>
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <span>Cb 取樣密度 <span class="small-badge" id="cbValue">4</span></span>
+              <span id="cbPercent">100%</span>
+            </div>
+            <input id="cbSlider" type="range" min="0" max="4" step="1" value="4" />
+            <div class="subtext">控制藍色差 Cb 的保留程度。降低後顏色邊界會較模糊。</div>
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <span>Cr 取樣密度 <span class="small-badge" id="crValue">4</span></span>
+              <span id="crPercent">100%</span>
+            </div>
+            <input id="crSlider" type="range" min="0" max="4" step="1" value="4" />
+            <div class="subtext">控制紅色差 Cr 的保留程度。降低後紅色方向的色彩細節變少。</div>
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <span>Y 組成權重</span>
+              <span id="weightSummary">Kr=0.299, Kg=0.587, Kb=0.114</span>
+            </div>
+            <div class="subtext">改變亮度 Y 如何由 R/G/B 組成，觀察 Y 圖如何改變。</div>
+
+            <div class="slider-block">
+              <div class="slider-head"><span>Kr（紅權重）</span><span id="krValue">0.299</span></div>
+              <input id="krSlider" type="range" min="0" max="1000" step="1" value="299" />
+            </div>
+            <div class="slider-block">
+              <div class="slider-head"><span>Kb（藍權重）</span><span id="kbValue">0.114</span></div>
+              <input id="kbSlider" type="range" min="0" max="1000" step="1" value="114" />
+            </div>
+            <div class="subtext">Kg 會自動等於 1 - Kr - Kb。若 Kr + Kb > 1，會自動限制成有效範圍。</div>
+          </div>
+
+          <div class="warning">
+            這裡的 Y / Cb / Cr 三個獨立滑桿是教學版近似工具，不是嚴格標準的正式編碼器。
+            目的是讓學生直觀看出：降 Y 會嚴重傷害細節；降 Cb / Cr 通常主要讓顏色邊界變軟。
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="metric-list">
+            <div><strong>檔名：</strong><span id="fileName">尚未載入</span></div>
+            <div><strong>Y:Cb:Cr 教學表示：</strong><span id="samplingLabel">4:4:4</span></div>
+            <div><strong>MSE：</strong><span id="mseValue">-</span></div>
+            <div><strong>PSNR：</strong><span id="psnrValue">-</span></div>
+          </div>
+          <div class="helper">
+            這裡全部使用的是 Cb / Cr（數位）觀念。：
+            Pb / Pr 是類比色差，通常是電壓，Cb / Cr 是它的數位化版本。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section">RGB 三通道</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3>R</h3>
+        <div class="canvas-box"><canvas id="rCanvas"></canvas><div class="placeholder" id="rPlaceholder">尚未載入</div></div>
+        <div class="subtitle">紅色通道</div>
+        <div class="formula">R 通道直接取自原圖紅色分量。</div>
+      </div>
+      <div class="card">
+        <h3>G</h3>
+        <div class="canvas-box"><canvas id="gCanvas"></canvas><div class="placeholder" id="gPlaceholder">尚未載入</div></div>
+        <div class="subtitle">綠色通道</div>
+        <div class="formula">G 通道直接取自原圖綠色分量。</div>
+      </div>
+      <div class="card">
+        <h3>B</h3>
+        <div class="canvas-box"><canvas id="bCanvas"></canvas><div class="placeholder" id="bPlaceholder">尚未載入</div></div>
+        <div class="subtitle">藍色通道</div>
+        <div class="formula">B 通道直接取自原圖藍色分量。</div>
+      </div>
+    </div>
+
+    <h2 class="section">YCbCr 三通道</h2>
+    <div class="grid-3">
+      <div class="card">
+        <h3>Y</h3>
+        <div class="canvas-box"><canvas id="yCanvas"></canvas><div class="placeholder" id="yPlaceholder">尚未載入</div></div>
+        <div class="subtitle">亮度（黑白細節）</div>
+        <div class="formula" id="yFormula"></div>
+      </div>
+      <div class="card">
+        <h3>Cb</h3>
+        <div class="canvas-box"><canvas id="cbCanvas"></canvas><div class="placeholder" id="cbPlaceholder">尚未載入</div></div>
+        <div class="subtitle" id="cbSubtitle">藍色差通道（Cb）</div>
+        <div class="formula" id="cbFormula"></div>
+      </div>
+      <div class="card">
+        <h3>Cr</h3>
+        <div class="canvas-box"><canvas id="crCanvas"></canvas><div class="placeholder" id="crPlaceholder">尚未載入</div></div>
+        <div class="subtitle" id="crSubtitle">紅色差通道（Cr）</div>
+        <div class="formula" id="crFormula"></div>
+      </div>
+    </div>
+
+    <h2 class="section">原圖與重建結果</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>原圖</h3>
+        <div class="canvas-box"><canvas id="originalCanvas"></canvas><div class="placeholder" id="originalPlaceholder">尚未載入</div></div>
+        <div class="subtitle">RGB</div>
+        <div class="formula">原始圖片以 RGB 顯示。</div>
+      </div>
+      <div class="card">
+        <h3>重建圖</h3>
+        <div class="canvas-box"><canvas id="reconCanvas"></canvas><div class="placeholder" id="reconPlaceholder">尚未載入</div></div>
+        <div class="subtitle">將降採樣後的 Y / Cb / Cr 再轉回 RGB</div>
+        <div class="formula" id="reconFormula">R = Y + 1.403 × (Cr - 128)
+G = Y - 0.344 × (Cb - 128) - 0.714 × (Cr - 128)
+B = Y + 1.773 × (Cb - 128)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const els = {
+      fileInput: document.getElementById("fileInput"),
+      downloadBtn: document.getElementById("downloadBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      fileName: document.getElementById("fileName"),
+      samplingLabel: document.getElementById("samplingLabel"),
+      mseValue: document.getElementById("mseValue"),
+      psnrValue: document.getElementById("psnrValue"),
+      ySlider: document.getElementById("ySlider"),
+      cbSlider: document.getElementById("cbSlider"),
+      crSlider: document.getElementById("crSlider"),
+      yValue: document.getElementById("yValue"),
+      cbValue: document.getElementById("cbValue"),
+      crValue: document.getElementById("crValue"),
+      yPercent: document.getElementById("yPercent"),
+      cbPercent: document.getElementById("cbPercent"),
+      crPercent: document.getElementById("crPercent"),
+      krSlider: document.getElementById("krSlider"),
+      kbSlider: document.getElementById("kbSlider"),
+      krValue: document.getElementById("krValue"),
+      kbValue: document.getElementById("kbValue"),
+      weightSummary: document.getElementById("weightSummary"),
+      yFormula: document.getElementById("yFormula"),
+      cbFormula: document.getElementById("cbFormula"),
+      crFormula: document.getElementById("crFormula"),
+      cbSubtitle: document.getElementById("cbSubtitle"),
+      crSubtitle: document.getElementById("crSubtitle"),
+      canvases: {
+        r: document.getElementById("rCanvas"),
+        g: document.getElementById("gCanvas"),
+        b: document.getElementById("bCanvas"),
+        y: document.getElementById("yCanvas"),
+        cb: document.getElementById("cbCanvas"),
+        cr: document.getElementById("crCanvas"),
+        original: document.getElementById("originalCanvas"),
+        recon: document.getElementById("reconCanvas")
+      },
+      placeholders: {
+        r: document.getElementById("rPlaceholder"),
+        g: document.getElementById("gPlaceholder"),
+        b: document.getElementById("bPlaceholder"),
+        y: document.getElementById("yPlaceholder"),
+        cb: document.getElementById("cbPlaceholder"),
+        cr: document.getElementById("crPlaceholder"),
+        original: document.getElementById("originalPlaceholder"),
+        recon: document.getElementById("reconPlaceholder")
+      }
+    };
+
+    let appState = {
+      fileName: "",
+      sourceImageData: null,
+      lastReconstructedCanvas: null
+    };
+
+    function clampByte(v) {
+      return Math.max(0, Math.min(255, Math.round(v)));
+    }
+
+    function createOffscreenCanvas(width, height) {
+      const c = document.createElement("canvas");
+      c.width = width;
+      c.height = height;
+      return c;
+    }
+
+    function setCanvasImage(targetCanvas, imageData) {
+      targetCanvas.width = imageData.width;
+      targetCanvas.height = imageData.height;
+      const ctx = targetCanvas.getContext("2d");
+      ctx.putImageData(imageData, 0, 0);
+      const key = targetCanvas.id.replace("Canvas", "");
+      if (els.placeholders[key]) els.placeholders[key].style.display = "none";
+    }
+
+    function rgbaToImageData(data, width, height) {
+      return new ImageData(data, width, height);
+    }
+
+    function channelToTintedImage(channel, width, height, color) {
+      const out = new Uint8ClampedArray(width * height * 4);
+      const idx = color === "r" ? 0 : color === "g" ? 1 : 2;
+      for (let i = 0, p = 0; i < channel.length; i++, p += 4) {
+        out[p] = idx === 0 ? channel[i] : 0;
+        out[p + 1] = idx === 1 ? channel[i] : 0;
+        out[p + 2] = idx === 2 ? channel[i] : 0;
+        out[p + 3] = 255;
+      }
+      return rgbaToImageData(out, width, height);
+    }
+
+    function channelToGrayImage(channel, width, height) {
+      const out = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0, p = 0; i < channel.length; i++, p += 4) {
+        const v = channel[i];
+        out[p] = v;
+        out[p + 1] = v;
+        out[p + 2] = v;
+        out[p + 3] = 255;
+      }
+      return rgbaToImageData(out, width, height);
+    }
+
+    function channelToMappedColor(channel, width, height, mode) {
+      const out = new Uint8ClampedArray(width * height * 4);
+      for (let i = 0, p = 0; i < channel.length; i++, p += 4) {
+        const centered = channel[i] - 128;
+        if (mode === "cb") {
+          if (centered >= 0) {
+            const k = clampByte(128 + Math.abs(centered));
+            out[p] = 0; out[p + 1] = 0; out[p + 2] = k;
+          } else {
+            const k = clampByte(128 + Math.abs(centered));
+            out[p] = k; out[p + 1] = k; out[p + 2] = 0;
+          }
+        } else {
+          if (centered >= 0) {
+            const k = clampByte(128 + Math.abs(centered));
+            out[p] = k; out[p + 1] = 0; out[p + 2] = 0;
+          } else {
+            const k = clampByte(128 + Math.abs(centered));
+            out[p] = 0; out[p + 1] = k; out[p + 2] = k;
+          }
+        }
+        out[p + 3] = 255;
+      }
+      return rgbaToImageData(out, width, height);
+    }
+
+    function getWeights() {
+      let kr = Number(els.krSlider.value) / 1000;
+      let kb = Number(els.kbSlider.value) / 1000;
+      if (kr + kb >= 0.999) {
+        const scale = 0.999 / (kr + kb);
+        kr *= scale;
+        kb *= scale;
+      }
+      const kg = 1 - kr - kb;
+      return { kr, kg, kb };
+    }
+
+    function rgbToYCbCr(imageData, weights) {
+      const { data, width, height } = imageData;
+      const size = width * height;
+      const r = new Uint8ClampedArray(size);
+      const g = new Uint8ClampedArray(size);
+      const b = new Uint8ClampedArray(size);
+      const y = new Uint8ClampedArray(size);
+      const cb = new Uint8ClampedArray(size);
+      const cr = new Uint8ClampedArray(size);
+      const { kr, kg, kb } = weights;
+
+      for (let i = 0, p = 0; i < size; i++, p += 4) {
+        const rv = data[p];
+        const gv = data[p + 1];
+        const bv = data[p + 2];
+        const yy = kr * rv + kg * gv + kb * bv;
+        const cbb = (bv - yy) * 0.564 + 128;
+        const crr = (rv - yy) * 0.713 + 128;
+
+        r[i] = rv;
+        g[i] = gv;
+        b[i] = bv;
+        y[i] = clampByte(yy);
+        cb[i] = clampByte(cbb);
+        cr[i] = clampByte(crr);
+      }
+      return { width, height, r, g, b, y, cb, cr };
+    }
+
+    function downsampleNearest(channel, width, height, level) {
+      if (level >= 4) return channel.slice();
+      const blockMap = {
+        4: { bx: 1, by: 1 },
+        3: { bx: 2, by: 1 },
+        2: { bx: 2, by: 2 },
+        1: { bx: 4, by: 2 },
+        0: { bx: 4, by: 4 }
+      };
+      const { bx, by } = blockMap[level];
+      const out = new Uint8ClampedArray(channel.length);
+
+      for (let y = 0; y < height; y += by) {
+        for (let x = 0; x < width; x += bx) {
+          const base = y * width + x;
+          const v = channel[base];
+          for (let yy = 0; yy < by; yy++) {
+            for (let xx = 0; xx < bx; xx++) {
+              const nx = x + xx;
+              const ny = y + yy;
+              if (nx < width && ny < height) {
+                out[ny * width + nx] = v;
+              }
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    function yCbCrToRgb(yObj, cbObj, crObj) {
+      const Y = yObj.channel, Cb = cbObj.channel, Cr = crObj.channel;
+      const w = yObj.width, h = yObj.height;
+      const out = new Uint8ClampedArray(w * h * 4);
+
+      for (let i = 0, p = 0; i < Y.length; i++, p += 4) {
+        const yy = Y[i];
+        const cbb = Cb[i] - 128;
+        const crr = Cr[i] - 128;
+        out[p] = clampByte(yy + 1.403 * crr);
+        out[p + 1] = clampByte(yy - 0.344 * cbb - 0.714 * crr);
+        out[p + 2] = clampByte(yy + 1.773 * cbb);
+        out[p + 3] = 255;
+      }
+      return rgbaToImageData(out, w, h);
+    }
+
+    function computeMSE(a, b) {
+      let sum = 0;
+      for (let i = 0; i < a.length; i++) {
+        const d = a[i] - b[i];
+        sum += d * d;
+      }
+      return sum / a.length;
+    }
+
+    function computePSNR(mse) {
+      if (mse === 0) return Infinity;
+      return 20 * Math.log10(255 / Math.sqrt(mse));
+    }
+
+    function currentChromaViewMode() {
+      const checked = document.querySelector('input[name="chromaView"]:checked');
+      return checked ? checked.value : "gray";
+    }
+
+    function updateTexts() {
+      const yLevel = Number(els.ySlider.value);
+      const cbLevel = Number(els.cbSlider.value);
+      const crLevel = Number(els.crSlider.value);
+
+      els.yValue.textContent = String(yLevel);
+      els.cbValue.textContent = String(cbLevel);
+      els.crValue.textContent = String(crLevel);
+      els.yPercent.textContent = `${Math.round((yLevel / 4) * 100)}%`;
+      els.cbPercent.textContent = `${Math.round((cbLevel / 4) * 100)}%`;
+      els.crPercent.textContent = `${Math.round((crLevel / 4) * 100)}%`;
+      els.samplingLabel.textContent = `${yLevel}:${cbLevel}:${crLevel}`;
+
+      const { kr, kg, kb } = getWeights();
+      els.krValue.textContent = kr.toFixed(3);
+      els.kbValue.textContent = kb.toFixed(3);
+      els.weightSummary.textContent = `Kr=${kr.toFixed(3)}, Kg=${kg.toFixed(3)}, Kb=${kb.toFixed(3)}`;
+
+      els.yFormula.textContent =
+`Y = Kr × R + Kg × G + Kb × B
+Kr = ${kr.toFixed(3)}
+Kg = ${kg.toFixed(3)}
+Kb = ${kb.toFixed(3)}`;
+
+      els.cbFormula.textContent =
+`Cb = (B - Y) × 0.564 + 128
+128 為中性值
+Cb > 128 表示偏藍，Cb < 128 表示偏黃
+顯示模式：${currentChromaViewMode() === "gray" ? "灰階顯示數值大小" : "彩色 mapping：高於 128 → 藍，低於 128 → 黃"}`;
+
+      els.crFormula.textContent =
+`Cr = (R - Y) × 0.713 + 128
+128 為中性值
+Cr > 128 表示偏紅，Cr < 128 表示偏青
+顯示模式：${currentChromaViewMode() === "gray" ? "灰階顯示數值大小" : "彩色 mapping：高於 128 → 紅，低於 128 → 青"}`;
+
+      els.cbSubtitle.textContent = currentChromaViewMode() === "gray" ? "藍色差通道（Cb，灰階數值）" : "藍色差通道（Cb，彩色 mapping）";
+      els.crSubtitle.textContent = currentChromaViewMode() === "gray" ? "紅色差通道（Cr，灰階數值）" : "紅色差通道（Cr，彩色 mapping）";
+    }
+
+    function updateView() {
+      updateTexts();
+      if (!appState.sourceImageData) return;
+
+      const weights = getWeights();
+      const packed = rgbToYCbCr(appState.sourceImageData, weights);
+      const { width, height, r, g, b, y, cb, cr } = packed;
+
+      const ySub = downsampleNearest(y, width, height, Number(els.ySlider.value));
+      const cbSub = downsampleNearest(cb, width, height, Number(els.cbSlider.value));
+      const crSub = downsampleNearest(cr, width, height, Number(els.crSlider.value));
+
+      const reconstructed = yCbCrToRgb(
+        { channel: ySub, width, height },
+        { channel: cbSub, width, height },
+        { channel: crSub, width, height }
+      );
+
+      setCanvasImage(els.canvases.r, channelToTintedImage(r, width, height, "r"));
+      setCanvasImage(els.canvases.g, channelToTintedImage(g, width, height, "g"));
+      setCanvasImage(els.canvases.b, channelToTintedImage(b, width, height, "b"));
+      setCanvasImage(els.canvases.y, channelToGrayImage(ySub, width, height));
+
+      if (currentChromaViewMode() === "gray") {
+        setCanvasImage(els.canvases.cb, channelToGrayImage(cbSub, width, height));
+        setCanvasImage(els.canvases.cr, channelToGrayImage(crSub, width, height));
+      } else {
+        setCanvasImage(els.canvases.cb, channelToMappedColor(cbSub, width, height, "cb"));
+        setCanvasImage(els.canvases.cr, channelToMappedColor(crSub, width, height, "cr"));
+      }
+
+      setCanvasImage(els.canvases.recon, reconstructed);
+      setCanvasImage(els.canvases.original, appState.sourceImageData);
+
+      const err = computeMSE(appState.sourceImageData.data, reconstructed.data);
+      const quality = computePSNR(err);
+      els.mseValue.textContent = err.toFixed(2);
+      els.psnrValue.textContent = Number.isFinite(quality) ? `${quality.toFixed(2)} dB` : "∞";
+
+      appState.lastReconstructedCanvas = createOffscreenCanvas(width, height);
+      appState.lastReconstructedCanvas.getContext("2d").putImageData(reconstructed, 0, 0);
+    }
+
+    function loadImageFile(file) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1200, maxH = 900;
+        let w = img.width, h = img.height;
+        const scale = Math.min(maxW / w, maxH / h, 1);
+        w = Math.max(2, Math.round(w * scale));
+        h = Math.max(2, Math.round(h * scale));
+
+        const canvas = createOffscreenCanvas(w, h);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const imageData = ctx.getImageData(0, 0, w, h);
+
+        appState.fileName = file.name;
+        appState.sourceImageData = imageData;
+        els.fileName.textContent = file.name;
+        updateView();
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    }
+
+    els.fileInput.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (file) loadImageFile(file);
+    });
+
+    [els.ySlider, els.cbSlider, els.crSlider, els.krSlider, els.kbSlider].forEach(el => {
+      el.addEventListener("input", updateView);
+    });
+
+    document.querySelectorAll('input[name="chromaView"]').forEach(el => {
+      el.addEventListener("change", updateView);
+    });
+
+    els.resetBtn.addEventListener("click", () => {
+      els.ySlider.value = "4";
+      els.cbSlider.value = "4";
+      els.crSlider.value = "4";
+      els.krSlider.value = "299";
+      els.kbSlider.value = "114";
+      document.querySelector('input[name="chromaView"][value="gray"]').checked = true;
+      updateView();
+    });
+
+    els.downloadBtn.addEventListener("click", () => {
+      if (!appState.lastReconstructedCanvas) {
+        alert("請先上傳圖片。");
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = appState.lastReconstructedCanvas.toDataURL("image/png");
+      const base = appState.fileName ? appState.fileName.replace(/\.[^.]+$/, "") : "reconstructed";
+      a.download = `${base}_Y${els.ySlider.value}_Cb${els.cbSlider.value}_Cr${els.crSlider.value}.png`;
+      a.click();
+    });
+
+    updateTexts();
+  </script>
+</body>
+</html>
